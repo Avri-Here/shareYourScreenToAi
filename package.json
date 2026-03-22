@@ -1,0 +1,28 @@
+{
+    "name": "gemini-video-demo",
+    "version": "1.0.0",
+    "description": "Demo app for Gemini Video Understanding",
+    "main": "main.js",
+    "scripts": {
+      "start": "electron .",
+      "build": "electron-builder"
+    },
+    "keywords": ["electron", "gemini", "video", "ai"],
+    "author": "Your Name",
+    "license": "MIT",
+    "devDependencies": {
+      "electron": "^28.0.0",
+      "electron-builder": "^24.9.1"
+    },
+    "dependencies": {
+      "@google/generative-ai": "^0.21.0",
+      "dotenv": "^16.3.1"
+    },
+    "build": {
+      "appId": "com.example.gemini-video-demo",
+      "win": {
+        "target": "nsis",
+        "icon": "icon.ico"
+      }
+    }
+  }
