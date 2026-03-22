@@ -4,18 +4,8 @@ A simple Windows app demonstrating Gemini AI video analysis, inspired by Sveta M
 
 ## 🚀 Quick install (Windows)
 
-### Option 1: Automatic script (easiest)
 
-1. **Open PowerShell as Administrator**
-2. **Run:**
-   ```powershell
-   cd gemini-video-demo
-   .\install.ps1
-   ```
-
-The script installs Node.js, npm packages, and the app.
-
-### Option 2: Manual install
+###  Manual install
 
 #### Step 1: Install Node.js
 
