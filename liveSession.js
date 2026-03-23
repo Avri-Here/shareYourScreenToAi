@@ -1,6 +1,9 @@
 // Gemini Live API (WebSocket) — screen JPEG (≤1 FPS) + mic PCM 16 kHz + optional text
 // Protocol: https://ai.google.dev/api/live
 
+const path = require('path');
+const { pathToFileURL } = require('url');
+
 const LIVE_WS_BASE =
     'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 
@@ -61,9 +64,10 @@ class GeminiLiveScreenSession {
         this._screenCtx = null;
         this._screenStream = null;
         this._micContext = null;
-        this._micProcessor = null;
+        this._micWorkletNode = null;
         this._micSource = null;
         this._micStream = null;
+        this._micAccum = new Float32Array(0);
         this._playbackContext = null;
         this._nextPlayTime = 0;
         this._activeSources = [];
@@ -417,42 +421,55 @@ class GeminiLiveScreenSession {
         const audioContext = new Ctx();
         await audioContext.resume();
         const inputRate = audioContext.sampleRate;
+        const workletHref = pathToFileURL(path.join(__dirname, 'micWorklet.js')).href;
+        await audioContext.audioWorklet.addModule(workletHref);
         const source = audioContext.createMediaStreamSource(stream);
-        const bufferSize = 4096;
-        const processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
-        processor.onaudioprocess = (e) => {
+        const micNode = new AudioWorkletNode(audioContext, 'mic-capture');
+        const chunkSize = 4096;
+        this._micAccum = new Float32Array(0);
+        micNode.port.onmessage = (e) => {
             if (!this._sessionReady) {
                 return;
             }
-            const input = e.inputBuffer.getChannelData(0);
-            const copy = new Float32Array(input.length);
-            copy.set(input);
-            const down = downsampleFloat32(copy, inputRate, 16000);
-            const pcm = floatTo16BitLE(down);
-            const b64 = arrayBufferToBase64(pcm);
-            this.sendAudioPcm16Base64(b64);
+            const block = e.data;
+            const prev = this._micAccum;
+            const merged = new Float32Array(prev.length + block.length);
+            merged.set(prev, 0);
+            merged.set(block, prev.length);
+            let offset = 0;
+            while (merged.length - offset >= chunkSize) {
+                const slice = merged.subarray(offset, offset + chunkSize);
+                const copy = new Float32Array(slice);
+                const down = downsampleFloat32(copy, inputRate, 16000);
+                const pcm = floatTo16BitLE(down);
+                const b64 = arrayBufferToBase64(pcm);
+                this.sendAudioPcm16Base64(b64);
+                offset += chunkSize;
+            }
+            this._micAccum = new Float32Array(merged.subarray(offset));
         };
         const silentGain = audioContext.createGain();
         silentGain.gain.value = 0;
-        source.connect(processor);
-        processor.connect(silentGain);
+        source.connect(micNode);
+        micNode.connect(silentGain);
         silentGain.connect(audioContext.destination);
         this._micContext = audioContext;
-        this._micProcessor = processor;
+        this._micWorkletNode = micNode;
         this._micSource = source;
     }
 
     stopMicrophone() {
-        if (this._micProcessor && this._micSource) {
+        if (this._micWorkletNode && this._micSource) {
             try {
                 this._micSource.disconnect();
-                this._micProcessor.disconnect();
+                this._micWorkletNode.disconnect();
             } catch (e) {
                 /* ignore */
             }
         }
-        this._micProcessor = null;
+        this._micWorkletNode = null;
         this._micSource = null;
+        this._micAccum = new Float32Array(0);
         if (this._micContext) {
             this._micContext.close();
             this._micContext = null;

@@ -1,5 +1,5 @@
 // main.js - Electron Main Process
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, session, desktopCapturer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -27,7 +27,33 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'display-capture' || permission === 'media') {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+  session.defaultSession.setDisplayMediaRequestHandler(
+    (request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen', 'window'] })
+        .then((sources) => {
+          if (!sources.length) {
+            callback({});
+            return;
+          }
+          callback({ video: sources[0] });
+        })
+        .catch(() => {
+          callback({});
+        });
+    },
+    { useSystemPicker: true }
+  );
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
