@@ -1,5 +1,5 @@
 // main.js - Electron Main Process
-const { app, BrowserWindow, ipcMain, dialog, session, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, session, desktopCapturer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -7,8 +7,8 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 1200,
+    width: 920,
+    height: 640,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -18,9 +18,6 @@ function createWindow() {
   });
 
   mainWindow.loadFile('index.html');
-  
-  // Open DevTools for debugging
-  mainWindow.webContents.openDevTools();
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -64,39 +61,6 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
-  }
-});
-
-// Select video file
-ipcMain.handle('select-video-file', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters: [
-      { name: 'Video Files', extensions: ['mp4', 'avi', 'mov', 'mkv', 'webm'] }
-    ]
-  });
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    return result.filePaths[0];
-  }
-  return null;
-});
-
-// Read video file
-ipcMain.handle('read-video-file', async (event, filePath) => {
-  try {
-    const fileBuffer = fs.readFileSync(filePath);
-    const base64 = fileBuffer.toString('base64');
-    const stats = fs.statSync(filePath);
-    
-    return {
-      base64: base64,
-      size: stats.size,
-      name: path.basename(filePath)
-    };
-  } catch (error) {
-    console.error('Error reading video file:', error);
-    throw error;
   }
 });
 

@@ -48,9 +48,16 @@ class GeminiLiveScreenSession {
     constructor(options) {
         this.apiKey = options.apiKey;
         this.model = options.model || DEFAULT_LIVE_MODEL;
-        this.systemInstruction =
-            options.systemInstruction ||
-            'You are a helpful assistant. The user may share their screen (JPEG frames, about 1 per second) and speak. Answer concisely in the same language they use.';
+        this.enableScreenShare = options.enableScreenShare !== false;
+        if (options.systemInstruction) {
+            this.systemInstruction = options.systemInstruction;
+        } else if (this.enableScreenShare) {
+            this.systemInstruction =
+                'You are a helpful assistant. The user shares their screen as JPEG frames (about one per second) and speaks. Answer concisely in the same language they use.';
+        } else {
+            this.systemInstruction =
+                'You are a helpful assistant. The user talks to you by voice only (no screen). Answer concisely in the same language they use.';
+        }
         this.onStatus = options.onStatus || (() => {});
         this.onUserTranscript = options.onUserTranscript || (() => {});
         this.onModelTranscript = options.onModelTranscript || (() => {});
@@ -180,7 +187,11 @@ class GeminiLiveScreenSession {
 
                 if (msg.setupComplete) {
                     this._sessionReady = true;
-                    this.onStatus('Live — speak or type. Screen frames sending if enabled.');
+                    this.onStatus(
+                        this.enableScreenShare
+                            ? 'Connected — speak or type. Screen frames will send when sharing is active.'
+                            : 'Connected — speak or type (voice only, no screen).'
+                    );
                     settleOk();
                     return;
                 }
@@ -363,7 +374,7 @@ class GeminiLiveScreenSession {
 
         if (previewVideoEl) {
             previewVideoEl.srcObject = stream;
-            previewVideoEl.style.display = 'block';
+            previewVideoEl.classList.remove('hidden');
         }
 
         const intervalMs = Math.max(1000, Math.floor(1000 / this._frameFps));
