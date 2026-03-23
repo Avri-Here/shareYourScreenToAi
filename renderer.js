@@ -1,10 +1,15 @@
 // renderer.js - Electron Renderer Process
 const { ipcRenderer } = require('electron');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GeminiLiveScreenSession } = require('./liveSession.js');
 
 let currentVideoFile = null;
 let currentVideoBase64 = null;
 let genAI = null;
+
+let liveSession = null;
+let liveUserBubble = null;
+let liveModelBubble = null;
 
 // Load API key on startup
 window.addEventListener('DOMContentLoaded', async () => {
@@ -307,9 +312,146 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function updateLiveStatus(message, type) {
+    const el = document.getElementById('liveStatusMsg');
+    if (!el) {
+        return;
+    }
+    el.textContent = message;
+    el.className = 'status ' + (type || 'info');
+}
+
+function appendLiveTranscript(role, text, finished) {
+    const root = document.getElementById('liveTranscript');
+    if (!root) {
+        return;
+    }
+    let bubble = role === 'user' ? liveUserBubble : liveModelBubble;
+    if (!bubble) {
+        bubble = document.createElement('div');
+        bubble.className = 'timestamp-item';
+        const label = role === 'user' ? 'You' : 'Gemini';
+        bubble.innerHTML =
+            '<span class="time">' +
+            label +
+            '</span><div class="content"></div>';
+        root.appendChild(bubble);
+        if (role === 'user') {
+            liveUserBubble = bubble;
+        } else {
+            liveModelBubble = bubble;
+        }
+    }
+    const content = bubble.querySelector('.content');
+    content.textContent = (content.textContent || '') + (text || '');
+    root.scrollTop = root.scrollHeight;
+    if (finished) {
+        if (role === 'user') {
+            liveUserBubble = null;
+        } else {
+            liveModelBubble = null;
+        }
+    }
+}
+
+async function startLiveSession() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) {
+        updateLiveStatus('Enter and save an API key first', 'error');
+        return;
+    }
+    if (liveSession) {
+        updateLiveStatus('Session already running', 'processing');
+        return;
+    }
+
+    const modelSelect = document.getElementById('liveModel');
+    const model = modelSelect ? modelSelect.value : undefined;
+
+    document.getElementById('liveStartBtn').disabled = true;
+    document.getElementById('liveStopBtn').disabled = false;
+    updateLiveStatus('Starting…', 'processing');
+
+    const transcript = document.getElementById('liveTranscript');
+    if (transcript) {
+        transcript.innerHTML = '';
+    }
+    liveUserBubble = null;
+    liveModelBubble = null;
+
+    liveSession = new GeminiLiveScreenSession({
+        apiKey,
+        model,
+        onStatus: (t) => updateLiveStatus(t, 'info'),
+        onUserTranscript: (text, fin) => appendLiveTranscript('user', text, fin),
+        onModelTranscript: (text, fin) => appendLiveTranscript('model', text, fin),
+        onError: (msg) => updateLiveStatus(msg, 'error'),
+    });
+
+    try {
+        await liveSession.connect();
+        await liveSession.startMicrophone();
+        try {
+            const preview = document.getElementById('liveScreenPreview');
+            await liveSession.startScreenShare(preview);
+        } catch (screenErr) {
+            console.warn('Screen share skipped:', screenErr);
+            updateLiveStatus('Screen not shared — voice and text only', 'processing');
+        }
+    } catch (err) {
+        console.error('Live session error:', err);
+        updateLiveStatus('Live error: ' + err.message, 'error');
+        if (liveSession) {
+            liveSession.disconnect();
+            liveSession = null;
+        }
+        document.getElementById('liveStartBtn').disabled = false;
+        document.getElementById('liveStopBtn').disabled = true;
+        const preview = document.getElementById('liveScreenPreview');
+        if (preview) {
+            preview.srcObject = null;
+            preview.style.display = 'none';
+        }
+    }
+}
+
+function stopLiveSession() {
+    if (liveSession) {
+        liveSession.disconnect();
+        liveSession = null;
+    }
+    liveUserBubble = null;
+    liveModelBubble = null;
+    const preview = document.getElementById('liveScreenPreview');
+    if (preview) {
+        preview.srcObject = null;
+        preview.style.display = 'none';
+    }
+    document.getElementById('liveStartBtn').disabled = false;
+    document.getElementById('liveStopBtn').disabled = true;
+    updateLiveStatus('Live session idle', 'info');
+}
+
+function sendLiveTextMessage() {
+    if (!liveSession || !liveSession.sessionReady) {
+        updateLiveStatus('Start a live session first', 'error');
+        return;
+    }
+    const input = document.getElementById('liveTextInput');
+    const text = input.value.trim();
+    if (!text) {
+        return;
+    }
+    liveSession.sendText(text);
+    input.value = '';
+}
+
 // Expose for onclick handlers
 window.saveApiKey = saveApiKey;
 window.selectVideoFile = selectVideoFile;
 window.useYouTubeUrl = useYouTubeUrl;
 window.analyzeVideo = analyzeVideo;
 window.setPrompt = setPrompt;
+window.startLiveSession = startLiveSession;
+window.stopLiveSession = stopLiveSession;
+window.sendLiveTextMessage = sendLiveTextMessage;

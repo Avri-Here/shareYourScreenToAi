@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://generativelanguage.googleapis.com; img-src 'self' data: blob: file: https:; media-src 'self' file: blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com; img-src 'self' data: blob: file: https:; media-src 'self' file: blob:;">
     <title>Gemini Video Understanding - Demo</title>
     <style>
         * {
@@ -288,6 +288,32 @@
         .examples li:hover {
             background: #e2e8f0;
         }
+
+        .live-screen-preview {
+            width: 100%;
+            max-height: 220px;
+            background: #000;
+            border-radius: 6px;
+            margin: 12px 0;
+        }
+
+        #liveTranscript {
+            max-height: 220px;
+            overflow-y: auto;
+            background: #fff;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .live-hint {
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 
@@ -372,6 +398,35 @@
                     <label>💬 Your question about the video:</label>
                     <input type="text" id="prompt" placeholder="e.g. Describe what happens in the video...">
                 </div>
+
+                <hr style="margin: 24px 0; border: 1px solid #e2e8f0;">
+
+                <h2>🖥️ Live — screen + voice</h2>
+                <p class="live-hint">Gemini Live API (WebSocket): microphone + screen as JPEG (~1 FPS). Uses the same API key as above. For production, prefer ephemeral tokens instead of exposing the key in the client.</p>
+
+                <div class="config-section">
+                    <label>Live model:</label>
+                    <select id="liveModel">
+                        <option value="gemini-2.5-flash-native-audio-preview-12-2025" selected>Gemini 2.5 Flash native audio (Live)</option>
+                    </select>
+                </div>
+
+                <div style="margin: 12px 0;">
+                    <button type="button" class="btn" id="liveStartBtn" onclick="startLiveSession()">▶ Start live session</button>
+                    <button type="button" class="btn btn-secondary" id="liveStopBtn" onclick="stopLiveSession()" disabled>⏹ Stop</button>
+                </div>
+
+                <video id="liveScreenPreview" class="live-screen-preview" playsinline autoplay muted style="display: none;"></video>
+
+                <div id="liveTranscript"></div>
+
+                <div class="config-section" style="margin-top: 12px;">
+                    <label>Text to model (optional):</label>
+                    <input type="text" id="liveTextInput" placeholder="Type and send while connected…">
+                    <button type="button" class="btn btn-secondary" style="margin-top: 8px;" onclick="sendLiveTextMessage()">Send text</button>
+                </div>
+
+                <div id="liveStatusMsg" class="status info" style="margin-top: 12px;">Live session idle</div>
             </div>
 
             <!-- Right: results -->
