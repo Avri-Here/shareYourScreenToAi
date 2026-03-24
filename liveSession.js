@@ -56,7 +56,7 @@ class GeminiLiveScreenSession {
                 'You are a helpful assistant. The user shares their screen as JPEG frames (about one per second) and speaks. Answer concisely in the same language they use.';
         } else {
             this.systemInstruction =
-                'You are a helpful assistant. The user talks to you by voice only (no screen). Answer concisely in the same language they use.';
+                'You are a helpful assistant. The user talks to you by voice only -  Answer concisely in the same language they use.';
         }
         this.onStatus = options.onStatus || (() => {});
         this.onUserTranscript = options.onUserTranscript || (() => {});

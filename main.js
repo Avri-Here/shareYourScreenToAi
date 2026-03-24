@@ -33,7 +33,7 @@ app.whenReady().then(() => {
     }
   });
   session.defaultSession.setDisplayMediaRequestHandler(
-    (request, callback) => {
+    (_, callback) => {
       desktopCapturer
         .getSources({ types: ['screen', 'window'] })
         .then((sources) => {
