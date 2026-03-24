@@ -61,6 +61,7 @@ class GeminiLiveScreenSession {
         this.onStatus = options.onStatus || (() => {});
         this.onUserTranscript = options.onUserTranscript || (() => {});
         this.onModelTranscript = options.onModelTranscript || (() => {});
+        this.onUsageMetadata = options.onUsageMetadata || (() => {});
         this.onError = options.onError || (() => {});
 
         this._ws = null;
@@ -183,6 +184,10 @@ class GeminiLiveScreenSession {
                 } catch (e) {
                     this.onError('Invalid server message');
                     return;
+                }
+
+                if (msg.usageMetadata) {
+                    this.onUsageMetadata(msg.usageMetadata);
                 }
 
                 if (msg.setupComplete) {

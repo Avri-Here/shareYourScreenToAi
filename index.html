@@ -419,6 +419,46 @@
         .session-footer .btn {
             flex-shrink: 0;
         }
+
+        .usage-heading {
+            font-size: 15px;
+            font-weight: 700;
+            color: #e6edf3;
+        }
+
+        .usage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+        }
+
+        .usage-metric {
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--dark-border);
+            background: var(--dark-bg2);
+        }
+
+        .usage-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--dark-font);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+
+        .usage-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #e6edf3;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .usage-links {
+            margin-top: 4px;
+        }
     </style>
 </head>
 
@@ -435,6 +475,7 @@
             <nav class="tabs" role="tablist">
                 <button type="button" class="tab active" data-tab="setup" role="tab" aria-selected="true">Setup</button>
                 <button type="button" class="tab" data-tab="session" role="tab" aria-selected="false">Session</button>
+                <button type="button" class="tab" data-tab="usage" role="tab" aria-selected="false">Usage</button>
             </nav>
         </aside>
 
@@ -489,6 +530,32 @@
                         <input type="text" id="liveTextInput" placeholder="Type and send while connected">
                     </div>
                     <button type="button" class="btn btn-secondary" onclick="sendLiveTextMessage()">Send</button>
+                </div>
+            </section>
+
+            <section id="page-usage" class="page" role="tabpanel">
+                <h2 class="usage-heading">Live session token usage</h2>
+                <p class="hint">Values come from <code>usageMetadata</code> on Live API WebSocket messages (prompt / response sizes for the current session). They are not your remaining account quota.</p>
+                <div id="usageSessionState" class="status info">Start a live session on the Session tab to see usage here.</div>
+                <div class="usage-grid" id="usageMetricsWrap" style="display: none;">
+                    <div class="usage-metric">
+                        <span class="usage-label">Prompt tokens</span>
+                        <span class="usage-value" id="usagePromptTokens">—</span>
+                    </div>
+                    <div class="usage-metric">
+                        <span class="usage-label">Response tokens</span>
+                        <span class="usage-value" id="usageResponseTokens">—</span>
+                    </div>
+                    <div class="usage-metric">
+                        <span class="usage-label">Total tokens</span>
+                        <span class="usage-value" id="usageTotalTokens">—</span>
+                    </div>
+                </div>
+                <h2 class="usage-heading" style="margin-top: 28px;">Account quota</h2>
+                <p class="hint">Google does not expose &ldquo;tokens remaining&rdquo; for API keys over the network. Check limits and usage in AI Studio or Cloud Console.</p>
+                <div class="btn-row usage-links">
+                    <button type="button" class="btn btn-secondary" id="openAiStudioKeys">Open AI Studio (API keys)</button>
+                    <button type="button" class="btn btn-secondary" id="openGeminiRateLimits">Gemini API rate limits</button>
                 </div>
             </section>
                 </div>

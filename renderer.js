@@ -1,5 +1,5 @@
 // renderer.js - Electron Renderer Process
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, shell } = require('electron');
 const { GeminiLiveScreenSession } = require('./liveSession.js');
 
 let liveSession = null;
@@ -41,6 +41,18 @@ window.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('apiKey').value = savedApiKey;
         showSetupStatus('API key loaded from saved settings.', 'success');
     }
+    const aiStudioBtn = document.getElementById('openAiStudioKeys');
+    if (aiStudioBtn) {
+        aiStudioBtn.addEventListener('click', () => {
+            void shell.openExternal('https://aistudio.google.com/apikey');
+        });
+    }
+    const rateLimitsBtn = document.getElementById('openGeminiRateLimits');
+    if (rateLimitsBtn) {
+        rateLimitsBtn.addEventListener('click', () => {
+            void shell.openExternal('https://ai.google.dev/gemini-api/docs/rate-limits');
+        });
+    }
 });
 
 async function saveApiKey() {
@@ -66,6 +78,62 @@ function updateLiveStatus(message, type) {
     }
     el.textContent = message;
     el.className = 'status ' + (type || 'info');
+}
+
+function formatUsageNum(n) {
+    if (n === undefined || n === null || Number.isNaN(n)) {
+        return '—';
+    }
+    return String(n);
+}
+
+function setUsagePanelIdle() {
+    const state = document.getElementById('usageSessionState');
+    const wrap = document.getElementById('usageMetricsWrap');
+    if (state) {
+        state.textContent = 'Start a live session on the Session tab to see usage here.';
+        state.className = 'status info';
+        state.style.display = 'block';
+    }
+    if (wrap) {
+        wrap.style.display = 'none';
+    }
+}
+
+function setUsagePanelWaiting() {
+    const state = document.getElementById('usageSessionState');
+    const wrap = document.getElementById('usageMetricsWrap');
+    if (state) {
+        state.textContent = 'Connected — waiting for usageMetadata from the API…';
+        state.className = 'status processing';
+        state.style.display = 'block';
+    }
+    if (wrap) {
+        wrap.style.display = 'none';
+    }
+}
+
+function applyUsageMetadata(meta) {
+    const state = document.getElementById('usageSessionState');
+    const wrap = document.getElementById('usageMetricsWrap');
+    const promptEl = document.getElementById('usagePromptTokens');
+    const responseEl = document.getElementById('usageResponseTokens');
+    const totalEl = document.getElementById('usageTotalTokens');
+    if (state) {
+        state.style.display = 'none';
+    }
+    if (wrap) {
+        wrap.style.display = 'grid';
+    }
+    if (promptEl) {
+        promptEl.textContent = formatUsageNum(meta.promptTokenCount);
+    }
+    if (responseEl) {
+        responseEl.textContent = formatUsageNum(meta.responseTokenCount);
+    }
+    if (totalEl) {
+        totalEl.textContent = formatUsageNum(meta.totalTokenCount);
+    }
 }
 
 function appendLiveTranscript(role, text, finished) {
@@ -144,6 +212,7 @@ async function startLiveSession() {
     }
     liveUserBubble = null;
     liveModelBubble = null;
+    setUsagePanelWaiting();
 
     if (!enableScreenShare) {
         setPreviewVisible(false);
@@ -156,6 +225,7 @@ async function startLiveSession() {
         onStatus: (t) => updateLiveStatus(t, 'info'),
         onUserTranscript: (text, fin) => appendLiveTranscript('user', text, fin),
         onModelTranscript: (text, fin) => appendLiveTranscript('model', text, fin),
+        onUsageMetadata: (meta) => applyUsageMetadata(meta),
         onError: (msg) => updateLiveStatus(msg, 'error'),
     });
 
@@ -183,6 +253,7 @@ async function startLiveSession() {
         document.getElementById('liveStartBtn').disabled = false;
         document.getElementById('liveStopBtn').disabled = true;
         setPreviewVisible(false);
+        setUsagePanelIdle();
     }
 }
 
@@ -197,6 +268,7 @@ function stopLiveSession() {
     document.getElementById('liveStartBtn').disabled = false;
     document.getElementById('liveStopBtn').disabled = true;
     updateLiveStatus('Live session idle', 'info');
+    setUsagePanelIdle();
 }
 
 function sendLiveTextMessage() {
