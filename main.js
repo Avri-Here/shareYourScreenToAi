@@ -1,5 +1,5 @@
 // main.js - Electron Main Process
-const { app, BrowserWindow, ipcMain, session, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, session, desktopCapturer, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -14,7 +14,8 @@ function createWindow() {
       contextIsolation: false,
       enableRemoteModule: true
     },
-    icon: path.join(__dirname, 'icon.ico')
+    icon: path.join(__dirname, 'icon.ico'),
+    autoHideMenuBar: true,
   });
 
   mainWindow.loadFile('index.html');
@@ -23,6 +24,8 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+Menu.setApplicationMenu(null);
 
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
