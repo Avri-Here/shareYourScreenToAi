@@ -1,7 +1,7 @@
 {
-    "name": "gemini-video-demo",
+    "name": "shareYourScreenToAi",
     "version": "1.0.0",
-    "description": "Demo app for Gemini Video Understanding",
+    "description": "Gemini Live Screen Share Agent",
     "main": "main.js",
     "scripts": {
       "start": "electron .",
