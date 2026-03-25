@@ -28,7 +28,7 @@ function createWindow() {
 Menu.setApplicationMenu(null);
 
 app.whenReady().then(() => {
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+  session.defaultSession.setPermissionRequestHandler((_, permission, callback) => {
     if (permission === 'display-capture' || permission === 'media') {
       callback(true);
     } else {
