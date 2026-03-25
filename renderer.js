@@ -169,9 +169,16 @@ function appendLiveTranscript(role, text, finished) {
     }
 }
 
-function getLiveShareScreenEnabled() {
+function getLiveVideoSource() {
     const checked = document.querySelector('input[name="liveShareMode"]:checked');
-    return checked && checked.value === 'screen';
+    if (!checked) {
+        return 'none';
+    }
+    const v = checked.value;
+    if (v === 'screen' || v === 'camera') {
+        return v;
+    }
+    return 'none';
 }
 
 function setPreviewVisible(show) {
@@ -200,7 +207,7 @@ async function startLiveSession() {
 
     const modelSelect = document.getElementById('liveModel');
     const model = modelSelect ? modelSelect.value : undefined;
-    const enableScreenShare = getLiveShareScreenEnabled();
+    const videoSource = getLiveVideoSource();
 
     document.getElementById('liveStartBtn').disabled = true;
     document.getElementById('liveStopBtn').disabled = false;
@@ -214,14 +221,14 @@ async function startLiveSession() {
     liveModelBubble = null;
     setUsagePanelWaiting();
 
-    if (!enableScreenShare) {
+    if (videoSource === 'none') {
         setPreviewVisible(false);
     }
 
     liveSession = new GeminiLiveScreenSession({
         apiKey,
         model,
-        enableScreenShare,
+        videoSource,
         onStatus: (t) => updateLiveStatus(t, 'info'),
         onUserTranscript: (text, fin) => appendLiveTranscript('user', text, fin),
         onModelTranscript: (text, fin) => appendLiveTranscript('model', text, fin),
@@ -232,14 +239,23 @@ async function startLiveSession() {
     try {
         await liveSession.connect();
         await liveSession.startMicrophone();
-        if (enableScreenShare) {
+        if (videoSource === 'screen' || videoSource === 'camera') {
             const preview = document.getElementById('liveScreenPreview');
             setPreviewVisible(true);
             try {
-                await liveSession.startScreenShare(preview);
-            } catch (screenErr) {
-                console.warn('Screen share skipped:', screenErr);
-                updateLiveStatus('Screen share canceled or failed — voice and text only.', 'processing');
+                if (videoSource === 'screen') {
+                    await liveSession.startScreenShare(preview);
+                } else {
+                    await liveSession.startCameraShare(preview);
+                }
+            } catch (videoErr) {
+                console.warn('Video share skipped:', videoErr);
+                updateLiveStatus(
+                    videoSource === 'screen'
+                        ? 'Screen share canceled or failed — voice and text only.'
+                        : 'Camera unavailable or denied — voice and text only.',
+                    'processing'
+                );
                 setPreviewVisible(false);
             }
         }

@@ -48,12 +48,21 @@ class GeminiLiveScreenSession {
     constructor(options) {
         this.apiKey = options.apiKey;
         this.model = options.model || DEFAULT_LIVE_MODEL;
-        this.enableScreenShare = options.enableScreenShare !== false;
+        if (options.videoSource === 'screen' || options.videoSource === 'camera') {
+            this.videoSource = options.videoSource;
+        } else if (options.enableScreenShare === true) {
+            this.videoSource = 'screen';
+        } else {
+            this.videoSource = 'none';
+        }
         if (options.systemInstruction) {
             this.systemInstruction = options.systemInstruction;
-        } else if (this.enableScreenShare) {
+        } else if (this.videoSource === 'screen') {
             this.systemInstruction =
                 'You are a helpful assistant. The user shares their screen as JPEG frames (about one per second) and speaks. Answer concisely in the same language they use.';
+        } else if (this.videoSource === 'camera') {
+            this.systemInstruction =
+                'You are a helpful assistant. The user shares their webcam as JPEG frames (about one per second) and speaks. Answer concisely in the same language they use.';
         } else {
             this.systemInstruction =
                 'You are a helpful assistant. The user talks to you by voice only -  Answer concisely in the same language they use.';
@@ -193,9 +202,11 @@ class GeminiLiveScreenSession {
                 if (msg.setupComplete) {
                     this._sessionReady = true;
                     this.onStatus(
-                        this.enableScreenShare
+                        this.videoSource === 'screen'
                             ? 'Connected — speak or type. Screen frames will send when sharing is active.'
-                            : 'Connected — speak or type (voice only, no screen).'
+                            : this.videoSource === 'camera'
+                              ? 'Connected — speak or type. Camera frames will send when the webcam is active.'
+                              : 'Connected — speak or type (voice only, no video).'
                     );
                     settleOk();
                     return;
@@ -352,17 +363,12 @@ class GeminiLiveScreenSession {
         );
     }
 
-    async startScreenShare(previewVideoEl) {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-            },
-            audio: false,
-        });
+    async _startJpegFramesFromStream(stream, previewVideoEl, onTrackEnded) {
         this._screenStream = stream;
         const track = stream.getVideoTracks()[0];
-        track.onended = () => this.stopScreenShare();
+        if (track && onTrackEnded) {
+            track.onended = onTrackEnded;
+        }
 
         const v = document.createElement('video');
         v.srcObject = stream;
@@ -408,6 +414,28 @@ class GeminiLiveScreenSession {
                 this._jpegQuality
             );
         }, intervalMs);
+    }
+
+    async startScreenShare(previewVideoEl) {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+            },
+            audio: false,
+        });
+        await this._startJpegFramesFromStream(stream, previewVideoEl, () => this.stopScreenShare());
+    }
+
+    async startCameraShare(previewVideoEl) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+            },
+            audio: false,
+        });
+        await this._startJpegFramesFromStream(stream, previewVideoEl, () => this.stopScreenShare());
     }
 
     stopScreenShare() {
